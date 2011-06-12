@@ -2,19 +2,24 @@ require 'rubygems/command'
 require 'gem/commands/new_command/configuration'
 require 'gem/commands/new_command/skeleton'
 require 'gem/commands/new_command/version'
+require 'fileutils'
+require 'open3'
 
 
 
 class Gem::Commands::NewCommand < Gem::Command
-  UserTemplatesDir    = File.expand_path(File.join(Gem.user_home, '.gem/new'))
+  ConfigPath          = File.join(Gem.user_home, '.gem', 'new', 'config')
+  UserTemplatesDir    = File.expand_path(File.join(Gem.user_home, '.gem', 'new', 'templates'))
   BundledTemplatesDir = File.expand_path(File.join(Gem.datadir('gem-new')))
   TemplateDirs = [
     UserTemplatesDir,
     BundledTemplatesDir,
   ]
 
+
   def initialize
     super 'new', "Create a new gem"
+    generate_default_config unless File.exist?(ConfigPath)
     add_option('-l', '--list-templates', 'Show a list of all templates') do |value, opts|
       opts[:list_templates] = value
     end
@@ -51,6 +56,9 @@ class Gem::Commands::NewCommand < Gem::Command
       
       TEMPLATES
       You can provide custom templates in #{UserTemplatesDir}
+
+      CONFIGURATION
+      You can configure a couple of settings in #{ConfigPath}
     DESCRIPTION
   end
 
@@ -63,7 +71,6 @@ private
   end
 
   def generate_gem
-    config_path   = File.join(Gem.user_home, '.gem_new_config')
     gem_name      = get_one_optional_argument
     abort("Must provide a gem name") unless gem_name
     gem_root      = File.expand_path(Dir.getwd)
@@ -72,10 +79,14 @@ private
     skeleton_path = template_path(skeleton_name)
     abort("No template named '#{skeleton_name}' found") unless skeleton_path
     skeleton      = Skeleton.new(skeleton_path)
-    configuration = Configuration.new(config_path)
+    configuration = Configuration.new(ConfigPath)
 
     puts "Creating gem '#{gem_name}' in '#{gem_root}"
     puts "Using the '#{skeleton_name}' directory skeleton"
+
+    if File.exist?(gem_path) then
+      exit unless prompt("A directory '#{gem_path}' already exists, continue?", :no)
+    end
 
     puts "", "Please enter the gem description, terminate with enter and ctrl-d"
     description = $stdin.read
@@ -98,7 +109,49 @@ private
         :description  => description,
         :summary      => summary,
       }
-    )
+    ) do |path, new_content|
+      old_content = File.read(path)
+      next false if old_content == new_content
+      result = nil
+      while result.nil?
+        print("File already exists, replace? ([N]o, [y]es, [d]iff) ")
+        $stdout.flush
+        case $stdin.gets
+          when nil then abort("Terminated")
+          when /^y(?:es)?$/i then result = true
+          when /^n(?:o)?$/i then result = false
+          when /^d(?:iff)?$/i then puts Open3.popen3(configuration.diff_tool % path) { |i,o,e| i.puts new_content; i.close; o.read }
+          else puts "Invalid reply"
+        end
+      end
+
+      result
+    end
+  end
+
+  def prompt(question, default=:yes)
+    print "#{question} #{default == :yes ? '([Y]es, [n]o)' : '([N]o, [y]es)'} "
+    $stdout.flush
+    if default == :yes then
+      $stdin.gets !~ /^n(?:o)?\b/i
+    else
+      $stdin.gets =~ /^y(?:es)?\b/i
+    end
+  end
+
+  def generate_default_config
+    yaml = <<-YAML.gsub(/^      /, '')
+      ---
+      config_version: 1
+      diff_tool:      diff -y --label old --label new %s -
+      # content variables are used for subsitution in template files, also see path_variables
+      content_variables:
+        author:         #{ENV["USER"] || 'unknown author'}
+      # content variables are used for subsitution in template paths, also see content_variables
+      path_variables: {}
+    YAML
+    FileUtils.mkdir_p(File.dirname(ConfigPath))
+    File.open(ConfigPath, 'wb') { |fh| fh.write(yaml) }
   end
 
   def template_glob(name='*')

@@ -44,9 +44,10 @@ class Gem::Commands::NewCommand < Gem::Command
       @verbose              = @options.delete(:verbose)
       @silent               = @options.delete(:silent)
       @out                  = @options.delete(:out)
+      raise ArgumentError, "Unknown options: #{@options.keys.join(', ')}" unless @options.empty?
     end
 
-    def materialize(in_path, env={})
+    def materialize(in_path, env={}, &on_collision)
       target_slice  = (in_path.length+1)..-1
       path_replacer = StringReplacer.new(env[:path_vars] || {})
       content_vars  = env[:content_vars] || {}
@@ -65,8 +66,10 @@ class Gem::Commands::NewCommand < Gem::Command
           processor.execute.call(data, content_vars)
         }
         info "  #{target_file_path[target_slice]}"
-        File.open(target_file_path, 'wb') do |fh|
-          fh.write(content)
+        if !File.exist?(target_file_path) || (block_given? && yield(target_file_path, content)) then
+          File.open(target_file_path, 'wb') do |fh|
+            fh.write(content)
+          end
         end
       end
     end
