@@ -1,0 +1,7 @@
+# encoding: utf-8
+
+require 'gem/version'
+
+module <%= namespace %>
+  Version = Gem::Version.new(<%= version.to_s.inspect %>)
+end
