@@ -9,13 +9,15 @@ require 'open3'
 
 class Gem::Commands::NewCommand < Gem::Command
   ConfigPath          = File.join(Gem.user_home, '.gem', 'new', 'config')
-  UserTemplatesDir    = File.expand_path(File.join(Gem.user_home, '.gem', 'new', 'templates'))
-  BundledTemplatesDir = File.expand_path(File.join(Gem.datadir('gem-new')))
-  TemplateDirs = [
-    UserTemplatesDir,
-    BundledTemplatesDir,
-  ]
-
+  UserTemplatesDir    = [:user, nil, File.join(Gem.user_home, '.gem', 'new', 'templates')]
+  BundledTemplatesDir = [:bundled, nil, Gem.datadir('gem-new')]
+  PluginTemplatesDirs = Gem::SourceIndex.from_installed_gems.find_name(/^gem-new-/).map { |spec|
+    spec.name
+  }.sort.map { |name|
+    gem name # load the gem, otherwise Gem.datadir is nil
+    [:gem, name, Gem.datadir(name)]
+  }
+  TemplateDirs        = [UserTemplatesDir] + PluginTemplatesDirs + [BundledTemplatesDir]
 
   def initialize
     super 'new', "Create a new gem"
@@ -56,17 +58,53 @@ class Gem::Commands::NewCommand < Gem::Command
       
       TEMPLATES
       You can provide custom templates in #{UserTemplatesDir}
+      To create a template named 'my_template', you'd create the following structure:
+      * #{UserTemplatesDir}/
+        * my_template/
+          * meta.yaml
+          * skeleton/
+      Within the 'skeleton' directory you place the files and directories for your skeleton.
+      Use `#{program_name} GEMNAME --variables` to see what variables are available for paths
+      and template-files.
 
       CONFIGURATION
       You can configure a couple of settings in #{ConfigPath}
     DESCRIPTION
+    #'
   end
 
 private
+  def templates
+    #Dir[template_glob].map { |path| File.basename(path) }.uniq.sort
+    seen = {}
+    list = []
+    TemplateDirs.each do |source_type, source_name, dir|
+      Dir.glob(File.join(dir, '*')) do |path|
+        name = File.basename(path)
+        unless seen[name] then
+          list << [source_type, source_name, dir, name]
+          seen[name] = true
+        end
+      end
+    end
+
+    list
+  end
+
   def list_templates
     puts "List of available templates (to use with the -t TEMPLATE option):"
-    Dir[template_glob].map { |path| File.basename(path) }.uniq.sort.each do |template|
-      puts "- #{template}"
+
+    default = Configuration.new(ConfigPath).default_template
+    templates.sort_by { |source_type, source_name, dir, name|
+      name
+    }.each do |source_type, source_name, dir, name|
+      default_addon = (default == name) ? ', default' : ''
+      case source_type
+        when :gem     then puts "- #{name} (from gem '#{source_name}'#{default_addon})"
+        when :bundled then puts "- #{name} (bundled with gem-new#{default_addon})"
+        when :user    then puts "- #{name} (user template#{default_addon})"
+        else raise "Unknown source type #{source_type.inspect}"
+      end
     end
   end
 
@@ -81,12 +119,14 @@ private
     skeleton      = Skeleton.new(skeleton_path)
     configuration = Configuration.new(ConfigPath)
 
-    puts "Creating gem '#{gem_name}' in '#{gem_root}"
-    puts "Using the '#{skeleton_name}' directory skeleton"
-
     if File.exist?(gem_path) then
       exit unless prompt("A directory '#{gem_path}' already exists, continue?", :no)
+      puts "Updating gem '#{gem_name}' in '#{gem_root}"
+    else
+      puts "Creating gem '#{gem_name}' in '#{gem_root}"
     end
+
+    puts "Using the '#{skeleton_name}' directory skeleton"
 
     puts "", "Please enter the gem description, terminate with enter and ctrl-d"
     description = $stdin.read
@@ -148,8 +188,14 @@ private
   def generate_default_config
     yaml = <<-YAML.gsub(/^      /, '')
       ---
-      config_version: 1
-      diff_tool:      diff -y --label old --label new %s -
+      # used to migrate configurations automatically
+      config_version:   1
+      # the template used without -t option
+      default_template: default
+      # the diff command used to show diffs on update, %s is the path to the old file
+      diff_tool:        diff -y --label old --label new %s -
+      # whether a diff should be shown right away in updates, without asking first
+      auto_diff:        true
       # content variables are used for subsitution in template files, also see path_variables
       content_variables:
         author:         #{ENV["USER"] || 'unknown author'}
@@ -162,7 +208,7 @@ private
   end
 
   def template_glob(name='*')
-    "{#{TemplateDirs.join(',')}}/#{name}"
+    "{#{TemplateDirs.map { |dir| dir.last }.join(',')}}/#{name}"
   end
 
   def template_path(name)

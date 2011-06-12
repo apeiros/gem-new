@@ -52,23 +52,36 @@ class Gem::Commands::NewCommand < Gem::Command
       path_replacer = StringReplacer.new(env[:path_vars] || {})
       content_vars  = env[:content_vars] || {}
 
-      info "Creating directories"
-      @directories.each do |source_dir_path|
-        target_dir_path = source_to_target_path(source_dir_path, in_path, path_replacer)
-        info "  #{target_dir_path[target_slice]}"
-        FileUtils.mkdir_p(target_dir_path)
+      unless File.exist?(in_path) then
+        info "Creating root '#{in_path}'"
+        FileUtils.mkdir_p(in_path)
       end
 
-      info "Creating files"
-      @files.each do |source_file_path|
-        target_file_path, processors = source_to_target_path_and_processors(source_file_path, in_path, path_replacer)
-        content = processors.inject(File.read(source_file_path)) { |data, processor|
-          processor.execute.call(data, content_vars)
-        }
-        info "  #{target_file_path[target_slice]}"
-        if !File.exist?(target_file_path) || (block_given? && yield(target_file_path, content)) then
-          File.open(target_file_path, 'wb') do |fh|
-            fh.write(content)
+      if @directories.empty? then
+        info "No directories to create"
+      else
+        info "Creating directories"
+        @directories.each do |source_dir_path|
+          target_dir_path = source_to_target_path(source_dir_path, in_path, path_replacer)
+          info "  #{target_dir_path[target_slice]}"
+          FileUtils.mkdir_p(target_dir_path)
+        end
+      end
+
+      if @directories.empty? then
+        info "No files to create"
+      else
+        info "Creating files"
+        @files.each do |source_file_path|
+          target_file_path, processors = source_to_target_path_and_processors(source_file_path, in_path, path_replacer)
+          content = processors.inject(File.read(source_file_path)) { |data, processor|
+            processor.execute.call(data, content_vars)
+          }
+          info "  #{target_file_path[target_slice]}"
+          if !File.exist?(target_file_path) || (block_given? && yield(target_file_path, content)) then
+            File.open(target_file_path, 'wb') do |fh|
+              fh.write(content)
+            end
           end
         end
       end

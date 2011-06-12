@@ -16,6 +16,10 @@ class Gem::Commands::NewCommand < Gem::Command
       @config['path_variables']
     end
 
+    def default_template
+      @config['default_template']
+    end
+
     def initial_version
       "0.0.1"
     end
