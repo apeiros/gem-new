@@ -94,21 +94,27 @@ private
     summary = $stdin.read
     puts
 
+    now = Time.now
     skeleton.materialize(
       gem_path,
-      :path_vars    => {
+      :path_vars    => symbolize_keys(configuration.path_variables).merge({
         :GEM_NAME     => gem_name,
-        :REQUIRE_NAME => gem_name
-      },
-      :content_vars => {
+        :REQUIRE_NAME => gem_name,
+        :YEAR         => now.year,
+        :MONTH        => now.month,
+        :DAY          => now.day,
+        :DATE         => now.strftime("%Y-%m-%d"),
+      }),
+      :content_vars => symbolize_keys(configuration.content_variables).merge({
         :gem_name     => gem_name,
         :require_name => gem_name,
+        :now          => now,
         :namespace    => camelcase(gem_name),
-        :author       => configuration.author,
         :version      => configuration.initial_version,
         :description  => description,
         :summary      => summary,
-      }
+        :date         => now.strftime("%Y-%m-%d"),
+      })
     ) do |path, new_content|
       old_content = File.read(path)
       next false if old_content == new_content
@@ -147,6 +153,7 @@ private
       # content variables are used for subsitution in template files, also see path_variables
       content_variables:
         author:         #{ENV["USER"] || 'unknown author'}
+        #email:          "your.email@address"
       # content variables are used for subsitution in template paths, also see content_variables
       path_variables: {}
     YAML
@@ -163,6 +170,10 @@ private
       return path
     end
     nil
+  end
+
+  def symbolize_keys(hash)
+    Hash[hash.map{|k,v|[k.to_sym,v]}]
   end
 
   def camelcase(string)

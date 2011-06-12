@@ -8,8 +8,12 @@ class Gem::Commands::NewCommand < Gem::Command
       @config['diff_tool']
     end
 
-    def author
-      @config['content_variables']['author']
+    def content_variables
+      @config['content_variables']
+    end
+
+    def path_variables
+      @config['path_variables']
     end
 
     def initial_version
