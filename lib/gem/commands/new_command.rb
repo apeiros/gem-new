@@ -8,6 +8,7 @@ require 'open3'
 
 
 class Gem::Commands::NewCommand < Gem::Command
+  ConfigVersion       = 2
   ConfigPath          = File.join(Gem.user_home, '.gem', 'new', 'config')
   UserTemplatesDir    = [:user, nil, File.join(Gem.user_home, '.gem', 'new', 'templates')]
   BundledTemplatesDir = [:bundled, nil, Gem.datadir('gem-new')]
@@ -21,7 +22,6 @@ class Gem::Commands::NewCommand < Gem::Command
 
   def initialize
     super 'new', "Create a new gem"
-    generate_default_config unless File.exist?(ConfigPath)
     add_option('-l', '--list-templates', 'Show a list of all templates') do |value, opts|
       opts[:list_templates] = value
     end
@@ -31,6 +31,19 @@ class Gem::Commands::NewCommand < Gem::Command
   end
 
   def execute
+    if File.exist?(ConfigPath) then
+      if Configuration.new(ConfigPath).config_version < ConfigVersion then
+        FileUtils.mv(ConfigPath, "#{ConfigPath}.bak")
+        generate_default_config
+        puts "Your configuration has been moved to #{ConfigPath}.bak and an updated configuration has been created"
+        exit if prompt "Abort now in order to inspect the configuration (recommended)?"
+      end
+    else
+      generate_default_config
+      puts "A new configuration was generated in #{ConfigPath}"
+      exit if prompt "Abort now in order to inspect the configuration (recommended)?"
+    end
+
     if options[:list_templates] then
       list_templates
     else
@@ -189,7 +202,7 @@ private
     yaml = <<-YAML.gsub(/^      /, '')
       ---
       # used to migrate configurations automatically
-      config_version:   1
+      config_version:   #{ConfigVersion}
       # the template used without -t option
       default_template: default
       # the diff command used to show diffs on update, %s is the path to the old file

@@ -20,6 +20,10 @@ class Gem::Commands::NewCommand < Gem::Command
       @config['default_template']
     end
 
+    def config_version
+      @config['config_version']
+    end
+
     def initial_version
       "0.0.1"
     end
