@@ -28,6 +28,9 @@ class Gem::Commands::NewCommand < Gem::Command
     add_option('-t', '--template TEMPLATE', 'Use TEMPLATE instead of the default template') do |value, opts|
       opts[:template] = value
     end
+    add_option('--variables', 'Show all available variables') do |value, opts|
+      opts[:variables] = value
+    end
   end
 
   def execute
@@ -121,16 +124,41 @@ private
     end
   end
 
+  def list_variables(variables)
+    path_vars    = variables[:path_vars]
+    content_vars = variables[:content_vars]
+    longest_key  = (path_vars.keys+content_vars.keys).map { |key| key.length }.max
+
+    puts "Path variables:"
+    path_vars.each do |key, value|
+      printf "%-*s %p\n", longest_key, key, value
+    end
+    puts "\nContent variables:"
+    content_vars.each do |key, value|
+      printf "%-*s %p\n", longest_key, key, value
+    end
+  end
+
   def generate_gem
-    gem_name      = get_one_optional_argument
+    configuration   = Configuration.new(ConfigPath)
+    gem_name        = get_one_optional_argument
     abort("Must provide a gem name") unless gem_name
-    gem_root      = File.expand_path(Dir.getwd)
-    gem_path      = File.join(gem_root, gem_name)
-    skeleton_name = options[:template] || 'default'
-    skeleton_path = template_path(skeleton_name)
-    abort("No template named '#{skeleton_name}' found") unless skeleton_path
-    skeleton      = Skeleton.new(skeleton_path)
-    configuration = Configuration.new(ConfigPath)
+    gem_root        = File.expand_path(Dir.getwd)
+    gem_path        = File.join(gem_root, gem_name)
+    template_name   = options[:template] || configuration.default_template
+    includes        = [[template_name]]
+    skeletons       = []
+    until includes.empty?
+      include_chain = includes.shift
+      skeleton_name = include_chain.last
+      skeleton_path = template_path(skeleton_name)
+      abort("No template named '#{skeleton_name}' found") unless skeleton_path
+      skeleton      = Skeleton.new(skeleton_path)
+      new_includes  = skeleton.includes
+      abort("Circular include found") unless (new_includes & include_chain).empty?
+      includes.concat(new_includes.map { |skeleton_name| include_chain+[skeleton_name] })
+      skeletons << skeleton
+    end
 
     if File.exist?(gem_path) then
       exit unless prompt("A directory '#{gem_path}' already exists, continue?", :no)
@@ -139,7 +167,7 @@ private
       puts "Creating gem '#{gem_name}' in '#{gem_root}"
     end
 
-    puts "Using the '#{skeleton_name}' directory skeleton"
+    puts "Using the '#{template_name}' directory skeleton"
 
     puts "", "Please enter the gem description, terminate with enter and ctrl-d"
     description = $stdin.read
@@ -147,9 +175,8 @@ private
     summary = $stdin.read
     puts
 
-    now = Time.now
-    skeleton.materialize(
-      gem_path,
+    now       = Time.now
+    variables = {
       :path_vars    => symbolize_keys(configuration.path_variables).merge({
         :GEM_NAME     => gem_name,
         :REQUIRE_NAME => gem_name,
@@ -167,24 +194,35 @@ private
         :description  => description,
         :summary      => summary,
         :date         => now.strftime("%Y-%m-%d"),
-      })
-    ) do |path, new_content|
-      old_content = File.read(path)
-      next false if old_content == new_content
-      result = nil
-      while result.nil?
-        print("File already exists, replace? ([N]o, [y]es, [d]iff) ")
-        $stdout.flush
-        case $stdin.gets
-          when nil then abort("Terminated")
-          when /^y(?:es)?$/i then result = true
-          when /^n(?:o)?$/i then result = false
-          when /^d(?:iff)?$/i then puts Open3.popen3(configuration.diff_tool % path) { |i,o,e| i.puts new_content; i.close; o.read }
-          else puts "Invalid reply"
+      }),
+    }
+
+    if options[:variables] then
+      list_variables(variables)
+    else
+      skeletons.reverse_each do |skeleton| # reverse_each?
+        puts "Template #{skeleton.name}"
+        skeleton.materialize(gem_path, variables) do |path, new_content|
+          interactive_materialization(path, new_content, configuration)
         end
       end
+    end
+  end
 
-      result
+  def interactive_materialization(path, new_content, configuration)
+    old_content = File.read(path)
+    return false if old_content == new_content
+
+    while result.nil?
+      print("File already exists, replace? ([N]o, [y]es, [d]iff) ")
+      $stdout.flush
+      case $stdin.gets
+        when nil then abort("Terminated")
+        when /^y(?:es)?$/i then return true
+        when /^n(?:o)?$/i then return false
+        when /^d(?:iff)?$/i then puts Open3.popen3(configuration.diff_tool % path) { |i,o,e| i.puts new_content; i.close; o.read }
+        else puts "Invalid reply"
+      end
     end
   end
 

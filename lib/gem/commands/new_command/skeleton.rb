@@ -26,6 +26,7 @@ class Gem::Commands::NewCommand < Gem::Command
       ErbTemplate.replace(template, variables)
     end
 
+    attr_reader :name
     attr_reader :meta
     attr_reader :base_path
     attr_reader :source_slice
@@ -33,8 +34,10 @@ class Gem::Commands::NewCommand < Gem::Command
     attr_reader :files
 
     def initialize(path, options=nil)
+      @name                 = File.basename(path)
       @options              = options ? DefaultOptions.merge(options) : DefaultOptions.dup
-      @meta                 = YAML.load_file(File.join(path, 'meta.yaml'))
+      @meta_path            = File.join(path, 'meta.yaml')
+      @meta                 = File.exist?(@meta_path) ? YAML.load_file(@meta_path) : {}
       @base_path            = path
       @source_slice         = (path.length+10)..-1
       contents              = Dir[File.join(path, "skeleton", "**", "{*,.gitkeep}")].sort
@@ -45,6 +48,10 @@ class Gem::Commands::NewCommand < Gem::Command
       @silent               = @options.delete(:silent)
       @out                  = @options.delete(:out)
       raise ArgumentError, "Unknown options: #{@options.keys.join(', ')}" unless @options.empty?
+    end
+
+    def includes
+      @meta['includes'] || []
     end
 
     def materialize(in_path, env={}, &on_collision)
@@ -68,7 +75,7 @@ class Gem::Commands::NewCommand < Gem::Command
         end
       end
 
-      if @directories.empty? then
+      if @files.empty? then
         info "No files to create"
       else
         info "Creating files"
