@@ -8,11 +8,17 @@ require 'open3'
 
 
 class Gem::Commands::NewCommand < Gem::Command
+  if Gem::Specification.respond_to?(:find_all) then
+    plugin_gems = Gem::Specification.find_all { |spec| spec.name =~ /^gem-new/ }
+  else
+    plugin_gems = Gem::SourceIndex.from_installed_gems.find_name(/^gem-new-/)
+  end
+
   ConfigVersion       = 2
   ConfigPath          = File.join(Gem.user_home, '.gem', 'new', 'config')
   UserTemplatesDir    = [:user, nil, File.join(Gem.user_home, '.gem', 'new', 'templates')]
   BundledTemplatesDir = [:bundled, nil, Gem.datadir('gem-new')]
-  PluginTemplatesDirs = Gem::SourceIndex.from_installed_gems.find_name(/^gem-new-/).map { |spec|
+  PluginTemplatesDirs = plugin_gems.map { |spec|
     spec.name
   }.sort.map { |name|
     gem name # load the gem, otherwise Gem.datadir is nil
