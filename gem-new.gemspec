@@ -2,7 +2,7 @@
 
 Gem::Specification.new do |s|
   s.name                      = "gem-new"
-  s.version                   = "0.1.0"
+  s.version                   = "0.1.1"
   s.required_rubygems_version = Gem::Requirement.new("> 1.3.1")
   s.authors                   = ["Stefan Rusterholz"]
   s.date                      = "2011-06-10"
@@ -20,7 +20,7 @@ Gem::Specification.new do |s|
     Dir['test/**/*'] +
     %w[
     ]
-  s.homepage                  = "http://github.com/apeiros/gem-new"
+  s.homepage                  = "https://github.com/apeiros/gem-new"
   s.require_paths             = %w[lib]
   s.rubygems_version          = "1.3.1"
   s.specification_version     = 3
