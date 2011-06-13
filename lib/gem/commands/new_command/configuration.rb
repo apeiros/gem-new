@@ -24,6 +24,10 @@ class Gem::Commands::NewCommand < Gem::Command
       @config['config_version']
     end
 
+    def auto_diff
+      @config['auto_diff']
+    end
+
     def initial_version
       "0.0.1"
     end

@@ -219,17 +219,23 @@ private
     old_content = File.read(path)
     return false if old_content == new_content
 
-    while result.nil?
+    puts diff(configuration, path, new_content) if configuration.auto_diff
+
+    loop do
       print("File already exists, replace? ([N]o, [y]es, [d]iff) ")
       $stdout.flush
       case $stdin.gets
         when nil then abort("Terminated")
         when /^y(?:es)?$/i then return true
-        when /^n(?:o)?$/i then return false
-        when /^d(?:iff)?$/i then puts Open3.popen3(configuration.diff_tool % path) { |i,o,e| i.puts new_content; i.close; o.read }
+        when /^n(?:o)?$/i, /^$/ then return false
+        when /^d(?:iff)?$/i then puts diff(configuration, path, new_content)
         else puts "Invalid reply"
       end
     end
+  end
+
+  def diff(configuration, path, new_content)
+    Open3.popen3(configuration.diff_tool % path) { |i,o,e| i.puts new_content; i.close; o.read }
   end
 
   def prompt(question, default=:yes)
@@ -250,7 +256,7 @@ private
       # the template used without -t option
       default_template: default
       # the diff command used to show diffs on update, %s is the path to the old file
-      diff_tool:        diff -y --label old --label new %s -
+      diff_tool:        diff -u --label old --label new %s -
       # whether a diff should be shown right away in updates, without asking first
       auto_diff:        true
       # content variables are used for subsitution in template files, also see path_variables
