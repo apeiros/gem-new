@@ -2,7 +2,7 @@
 
 Gem::Specification.new do |s|
   s.name                      = "gem-new"
-  s.version                   = "0.1.1"
+  s.version                   = "0.1.2"
   s.required_rubygems_version = Gem::Requirement.new("> 1.3.1")
   s.authors                   = ["Stefan Rusterholz"]
   s.date                      = "2011-06-10"
