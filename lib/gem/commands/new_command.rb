@@ -79,9 +79,9 @@ class Gem::Commands::NewCommand < Gem::Command
       Creates the basic directories and files of a new gem for you.
       
       TEMPLATES
-      You can provide custom templates in #{UserTemplatesDir}
+      You can provide custom templates in #{UserTemplatesDir.last}
       To create a template named 'my_template', you'd create the following structure:
-      * #{UserTemplatesDir}/
+      * #{UserTemplatesDir.last}/
         * my_template/
           * meta.yaml
           * skeleton/
