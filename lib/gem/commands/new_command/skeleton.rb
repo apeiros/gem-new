@@ -6,22 +6,42 @@ require 'gem/commands/new_command/erb_template'
 
 
 class Gem::Commands::NewCommand < Gem::Command
+  # Preregistered processors
+  # * .erb:  Interprets the file as ERB template, see rubys stdlib docs on ERB.
+  # * .stop: Stops the preprocessing chain, it's advised to add that to all files.
+  # * .rb:   Same as .stop
+  # * .yaml: Same as .stop
+  # * .html: Same as .stop
+  # * .js:   Same as .stop
+  # * .png:  Same as .stop
+  # * .jpg:  Same as .stop
+  # * .gif:  Same as .stop
+  #   
   class Skeleton
     DefaultOptions  = {
       :verbose  => false,
       :silent   => false,
       :out      => $stdout,
     }
-    Processors = {}
+    Processors = {
+      '.stop' => nil,
+      '.rb'   => nil,
+      '.yaml' => nil,
+      '.html' => nil,
+      '.js'   => nil,
+      '.png'  => nil,
+      '.jpg'  => nil,
+      '.gif'  => nil,
+    }
     Processor  = Struct.new(:suffix, :name, :execute)
-    
+
     def self.register_processor(suffix, name, &execute)
+      raise ArgumentError, "A processor named #{suffix.inspect} is already registered" if Processors[suffix]
+      raise TypeError, "Processor name must be a String, but is #{suffix.class}:#{suffix.inspect}" unless suffix.is_a?(String)
+
       Processors[suffix] = Processor.new(suffix, name, execute)
     end
 
-    register_processor '.literal', 'Literal' do |template, variables|
-      template
-    end
     register_processor '.erb', 'ERB' do |template, variables|
       ErbTemplate.replace(template, variables)
     end
@@ -100,25 +120,33 @@ class Gem::Commands::NewCommand < Gem::Command
 
     def source_to_target_path_and_processors(source_path, target_dir, replacer)
       replaced_source   = replacer.replace(source_path[@source_slice])
-      extname           = File.extname(replaced_source)
+      processed_source  = replaced_source.dup
       processors        = []
-      processed_source  = replaced_source
 
-      if processor = Processors[extname] then
-        processors      << processor
-        processed_source = processed_source.chomp(extname)
+      while processor = extract_processor_from_path(processed_source)
+        processors << processor
       end
       target_path = File.join(target_dir, processed_source)
-#       while processor = Processors[extname]
-#         processors       << processor
-#         processed_source  = File.basename(processed_source, extname)
-#         extname           = File.extname(processed_source)
-#       end
 
       [target_path, processors]
     end
 
   private
+    # @param [String] path
+    #   The path to extract the processor from.
+    #   BEWARE! The string referenced by path will be mutated. The extension is being
+    #   removed.
+    #
+    # @return [Processor, nil]
+    #   Returns the processor or nil
+    def extract_processor_from_path(path)
+      extname   = File.extname(path)
+      processor = Processors[extname]
+      path.chomp!(extname) if processor
+
+      processor
+    end
+
     def info(msg)
       @out.puts msg unless @silent
     end
