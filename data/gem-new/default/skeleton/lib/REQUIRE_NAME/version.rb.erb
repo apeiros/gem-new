@@ -1,6 +1,6 @@
 # encoding: utf-8
 
-require 'gem/version'
+require 'gem/version' unless defined? Gem::Version # Newer rubygems don't ship with the 'gem/version' file
 
 module <%= namespace %>
   Version = Gem::Version.new(<%= version.to_s.inspect %>)
