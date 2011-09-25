@@ -286,6 +286,6 @@ private
   end
 
   def camelcase(string)
-    string.gsub(/(?:^|_)([a-z])/) { |m| $1.upcase }
+    string.gsub(/(?:^|_)([a-z])/) { $1.upcase }
   end
 end
