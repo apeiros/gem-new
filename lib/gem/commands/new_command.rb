@@ -37,9 +37,17 @@ class Gem::Commands::NewCommand < Gem::Command
     add_option('--variables', 'Show all available variables') do |value, opts|
       opts[:variables] = value
     end
+    add_option('--version', 'Show gem-new version and exit') do |value, opts|
+      opts[:version] = true
+    end
   end
 
   def execute
+    if options[:version] then
+      puts "gem-new version #{VERSION}"
+      return
+    end
+
     if File.exist?(ConfigPath) then
       if Configuration.new(ConfigPath).config_version < ConfigVersion then
         FileUtils.mv(ConfigPath, "#{ConfigPath}.bak")
