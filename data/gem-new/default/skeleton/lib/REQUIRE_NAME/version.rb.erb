@@ -1,6 +1,10 @@
 # encoding: utf-8
 
-require 'gem/version' unless defined? Gem::Version # Newer rubygems don't ship with the 'gem/version' file
+begin
+  require 'rubygems/version' # newer rubygems use this
+rescue LoadError
+  require 'gem/version' # older rubygems use this
+end
 
 module <%= namespace %>
   Version = Gem::Version.new(<%= version.to_s.inspect %>)
