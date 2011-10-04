@@ -15,6 +15,9 @@ Quick Install & Usage
 2. `gem new my_new_gems_name`
 3. Profit!
 
+See `gem help new` for more information (only available after you installed the `gem-new`
+gem).
+
 
 
 Description

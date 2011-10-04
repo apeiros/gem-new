@@ -6,6 +6,7 @@ GEM NEW HISTORY
 2011- - Released Version 0.2.0
 ------------------------------
 
+* New:      Added basic rake tasks to build the gem.
 * Changed:  .literal Suffix no longer exists, use .stop instead.
 * Changed:  Files are now processed by suffix, until .stop or an unknown suffix is hit.
   E.g. foo.html.markdown.erb will first be processed by the ERB processor, then by the
