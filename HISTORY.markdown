@@ -3,7 +3,7 @@ GEM NEW HISTORY
 
 
 
-2011- - Released Version 0.2.0
+2011-10-04 Released Version 0.2.0
 ------------------------------
 
 * New:      Added basic rake tasks to build the gem.
