@@ -1,0 +1,2 @@
+The default template for gem new. It is very minimalistic and will only generate the basic
+structure of a rubygem, without anything in it.
