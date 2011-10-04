@@ -5,7 +5,6 @@ Gem::Specification.new do |s|
   s.version                   = "0.2.0"
   s.required_rubygems_version = Gem::Requirement.new("> 1.3.1")
   s.authors                   = ["Stefan Rusterholz"]
-  s.date                      = "2011-06-10"
   s.description               = <<-DESCRIPTION.chomp
     Gem-new is a gem command plugin that allows you to easily create a new gem.
   DESCRIPTION
