@@ -7,6 +7,6 @@ require '<%= require_name %>/version'
 
 
 # <%= namespace.chomp %>
-<%= description.gsub(/^/, '# ').chomp %>
+<%= description.gsub(/\n*\z/, '').gsub(/^/, '# ')+"\n" %>
 module <%= namespace %>
 end
