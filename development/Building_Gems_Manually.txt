@@ -1,0 +1,7 @@
+How to build a gem manually:
+
+mkdir pkg
+gem build *.gemspec
+mv *.gem pkg
+gem install -l pkg/*.gem
+  
