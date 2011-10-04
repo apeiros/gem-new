@@ -1,0 +1,1 @@
+This template provides a couple of rake tasks related to building your gem.
