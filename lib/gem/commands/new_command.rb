@@ -275,6 +275,7 @@ private
       path_variables: {}
     YAML
     FileUtils.mkdir_p(File.dirname(ConfigPath))
+    FileUtils.mkdir_p(UserTemplatesDir.last)
     File.open(ConfigPath, 'wb') { |fh| fh.write(yaml) }
   end
 
